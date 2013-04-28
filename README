@@ -1,0 +1,23 @@
+A simple command line tool to accessing POP3 mailbox's.
+
+Currently just connects you to your POP3 account and lets you issue POP3
+commands.
+
+	./popx 10.0.5.5 me@example.com
+
+Where me@example.com is the username for the account. It will then prompt
+for the password (with echo turned off).
+
+You can then issue commands such as LIST, TOP n, RETR n etc. Commands are
+not case sensitive.
+
+exit to finish.
+
+Useful to looking at that crufty old POP3 account that you don't want to
+go through all the trouble of setting up in your mail client
+
+Currently you need to use the IP address rather than hostname.
+
+Ultimately it should behave a bit more like the mailx program.
+
+Licensed under the GNU General Public License Version 2
