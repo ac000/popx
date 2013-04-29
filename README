@@ -27,7 +27,9 @@ paging) e.g you will see something like
 You can then issue commands such as TOP n, RETR n, DELE n etc. Commands are
 not case sensitive.
 
-exit to finish.
+You can get a list of useful commands by typing help.
+
+exit or quit to finish.
 
 Useful for looking at that crufty old POP3 account that you don't want to
 go through all the trouble of setting up in your mail client
