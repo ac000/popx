@@ -96,6 +96,7 @@ static void get_message_hdrs(int message, size_t len)
 	size_t hsize;
 	ssize_t rlen = 0;
 	ssize_t bytes_read;
+	int index;
 
 	memset(buf, 0, sizeof(buf));
 	snprintf(msg, sizeof(msg), "TOP %d\r\n", message);
@@ -115,13 +116,13 @@ static void get_message_hdrs(int message, size_t len)
 	hdrs = open_memstream(&hptr, &hsize);
 	fprintf(hdrs, "%s", buf);
 	rewind(hdrs);
-
-	nr_messages++;
+;
+	index = ++nr_messages - 1;
 	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdrs) * nr_messages);
-	memset(&msg_hdrs[nr_messages - 1], 0, sizeof(struct msg_hdrs));
+	memset(&msg_hdrs[index], 0, sizeof(struct msg_hdrs));
 
-	msg_hdrs[nr_messages - 1].msg = message;
-	msg_hdrs[nr_messages - 1].len = len;
+	msg_hdrs[index].msg = message;
+	msg_hdrs[index].len = len;
 	do {
 		char *line = NULL;
 		char *hdr;
@@ -133,15 +134,15 @@ static void get_message_hdrs(int message, size_t len)
 		if (strncasecmp(line, "subject: ", 9) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[nr_messages - 1].subject = strdup(hdr);
+			msg_hdrs[index].subject = strdup(hdr);
 		} else if (strncasecmp(line, "from: ", 6) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[nr_messages - 1].from = strdup(hdr);
+			msg_hdrs[index].from = strdup(hdr);
 		} else if (strncasecmp(line, "date: ", 6) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[nr_messages - 1].date = strdup(hdr);
+			msg_hdrs[index].date = strdup(hdr);
 		}
 out:
 		free(line);
