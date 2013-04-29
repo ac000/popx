@@ -67,6 +67,8 @@ static void free_msg_hdrs(void)
 		free(msg_hdrs[i].date);
 	}
 	free(msg_hdrs);
+	msg_hdrs = NULL;
+	nr_messages = 0;
 }
 
 static char *strchomp(char *string)
@@ -116,8 +118,9 @@ static void get_message_hdrs(int message, size_t len)
 
 	nr_messages++;
 	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdrs) * nr_messages);
-	msg_hdrs[message - 1].msg = message;
-	msg_hdrs[message - 1].len = len;
+
+	msg_hdrs[nr_messages - 1].msg = message;
+	msg_hdrs[nr_messages - 1].len = len;
 	do {
 		char *line = NULL;
 		char *hdr;
@@ -129,15 +132,15 @@ static void get_message_hdrs(int message, size_t len)
 		if (strncasecmp(line, "subject: ", 9) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[message - 1].subject = strdup(hdr);
+			msg_hdrs[nr_messages - 1].subject = strdup(hdr);
 		} else if (strncasecmp(line, "from: ", 6) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[message - 1].from = strdup(hdr);
+			msg_hdrs[nr_messages - 1].from = strdup(hdr);
 		} else if (strncasecmp(line, "date: ", 6) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[message - 1].date = strdup(hdr);
+			msg_hdrs[nr_messages - 1].date = strdup(hdr);
 		}
 out:
 		free(line);
@@ -256,6 +259,11 @@ static void parse_command(const char *comm)
 		display_message_list();
 	else
 		msg_send(comm);
+
+	if (strncasecmp(comm, "dele", 4) == 0) {
+		free_msg_hdrs();
+		get_message_list();
+	}
 }
 
 static void get_command(void)
