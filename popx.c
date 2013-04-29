@@ -118,6 +118,7 @@ static void get_message_hdrs(int message, size_t len)
 
 	nr_messages++;
 	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdrs) * nr_messages);
+	memset(&msg_hdrs[nr_messages - 1], 0, sizeof(struct msg_hdrs));
 
 	msg_hdrs[nr_messages - 1].msg = message;
 	msg_hdrs[nr_messages - 1].len = len;
