@@ -16,8 +16,6 @@ exit to finish.
 Useful to looking at that crufty old POP3 account that you don't want to
 go through all the trouble of setting up in your mail client
 
-Currently you need to use the IP address rather than hostname.
-
 Ultimately it should behave a bit more like the mailx program.
 
 Licensed under the GNU General Public License Version 2

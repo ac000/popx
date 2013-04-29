@@ -19,9 +19,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #define BUF_SIZE        8192
-#define POP3_PORT	110
+#define POP3_PORT	"110"
 
 static int sockfd;
 static ssize_t bytes_read;
@@ -35,16 +36,18 @@ static void print_usage(void)
 static void do_connect(const char *host, const char *username,
 		       const char *password)
 {
-	int len;
-	struct sockaddr_in address;
+	struct addrinfo hints;
+	struct addrinfo *res;
 
-	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = inet_addr(host);
-	address.sin_port = htons(POP3_PORT);
-	len = sizeof(address);
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = 0;
+	hints.ai_protocol = 0;
 
-	sockfd = socket(address.sin_family, SOCK_STREAM, 0);
-	connect(sockfd, (struct sockaddr *)&address, len);
+	getaddrinfo(host, POP3_PORT, &hints, &res);
+	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	connect(sockfd, res->ai_addr, res->ai_addrlen);
+	freeaddrinfo(res);
 
 	bytes_read = read(sockfd, buf, BUF_SIZE);
 	buf[bytes_read - 2] = '\0';
