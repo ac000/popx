@@ -43,6 +43,20 @@ static void print_usage(void)
 	printf("Usage: popx <host> <username>\n");
 }
 
+static void print_help(void)
+{
+	printf("\nList of useful commands:- \n");
+	printf("    TOP n [l]   View the headers of message n with optional "
+			"number of lines\n");
+	printf("                [l] of body\n");
+	printf("    RETR n      Retrieve message n\n");
+	printf("    DELE n      Delete message n\n");
+	printf("    RSET        Reset the session to its initial state\n");
+	printf("    LIST        List messages (POP)\n");
+	printf("    LISTX       popx message list\n");
+	printf("    QUIT\n");
+}
+
 static void free_msg_hdrs(void)
 {
 	int i;
@@ -232,8 +246,12 @@ static int msg_get(void)
 
 static void parse_command(const char *comm)
 {
-	if (strncmp(comm, "exit", 4) == 0)
+	if (strcasecmp(comm, "exit") == 0)
 		write(sockfd, "QUIT\r\n", 6);
+	else if (strcasecmp(comm, "help") == 0)
+		print_help();
+	else if (strcasecmp(comm, "listx") == 0)
+		display_message_list();
 	else
 		msg_send(comm);
 }
