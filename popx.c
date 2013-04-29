@@ -241,16 +241,17 @@ static int parse_command(const char *comm)
 
 static int get_command(void)
 {
-	int ret;
+	int ret = 0;
 	size_t len;
-	ssize_t bytes_read;
 	char *comm = NULL;
 
-	bytes_read = getline(&comm, &len, stdin);
-	comm[bytes_read - 1] = '\0';
+	getline(&comm, &len, stdin);
+	strchomp(comm);
+	if (strlen(comm) == 0)
+		goto out;
 	ret = parse_command(comm);
+out:
 	free(comm);
-	comm = NULL;
 
 	return ret;
 }
