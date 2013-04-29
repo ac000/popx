@@ -78,7 +78,7 @@ static void msg_send(const char *comm)
 static int msg_get(void)
 {
 	memset(buf, 0, sizeof(buf));
-	bytes_read = recvfrom(sockfd, buf, BUF_SIZE, 0, NULL, NULL);
+	bytes_read = read(sockfd, buf, BUF_SIZE);
 	printf("%s", buf);
 
 	if (bytes_read == 0)
