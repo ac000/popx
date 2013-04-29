@@ -146,7 +146,6 @@ static void get_message_hdrs(int message, size_t len)
 		}
 out:
 		free(line);
-		line = NULL;
 	} while (bytes_read > 0);
 
 	fclose(hdrs);
