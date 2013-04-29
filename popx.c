@@ -302,15 +302,15 @@ int main(int argc, char *argv[])
 	do_connect(argv[1], argv[2], password);
 	memset(password, 0, sizeof(password));
 
-	FD_ZERO(&rfds);
-	FD_SET(STDIN_FILENO, &rfds);
-	FD_SET(sockfd, &rfds);
-
 	get_message_list();
 	display_message_list();
+
+	FD_ZERO(&rfds);
 	for (;;) {
 		printf("popx %s> ", argv[1]);
 		fflush(stdout);
+		FD_SET(STDIN_FILENO, &rfds);
+		FD_SET(sockfd, &rfds);
 		select(sockfd + 1, &rfds, NULL, NULL, NULL);
 		if (FD_ISSET(sockfd, &rfds)) {
 			ret = msg_get();
@@ -321,8 +321,6 @@ int main(int argc, char *argv[])
 		} else {
 			get_command();
 		}
-		FD_SET(STDIN_FILENO, &rfds);
-		FD_SET(sockfd, &rfds);
 	}
 
 	close(sockfd);
