@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <termios.h>
 #include <unistd.h>
 #include <sys/select.h>
@@ -24,13 +25,152 @@
 #define BUF_SIZE        8192
 #define POP3_PORT	"110"
 
+struct msg_hdrs {
+	int msg;
+	size_t len;
+	char *from;
+	char *subject;
+	char *date;
+};
+
+static int nr_messages;
 static int sockfd;
-static ssize_t bytes_read;
 static char buf[BUF_SIZE];
+static struct msg_hdrs *msg_hdrs;
 
 static void print_usage(void)
 {
 	printf("Usage: popx <host> <username>\n");
+}
+
+static void free_msg_hdrs(void)
+{
+	int i;
+
+	for (i = 0; i < nr_messages; i++) {
+		free(msg_hdrs[i].from);
+		free(msg_hdrs[i].subject);
+		free(msg_hdrs[i].date);
+	}
+	free(msg_hdrs);
+}
+
+static char *strchomp(char *string)
+{
+	string[strcspn(string, "\r\n")] = '\0';
+	return string;
+}
+
+static void display_message_list(void)
+{
+	int i;
+
+	for (i = 0; i < nr_messages; i++) {
+		printf("% 4d: %s\n", msg_hdrs[i].msg, msg_hdrs[i].subject);
+		printf("\t%s\n", msg_hdrs[i].from);
+		printf("\t%s\n", msg_hdrs[i].date);
+	}
+}
+
+static void get_message_hdrs(int message, size_t len)
+{
+	FILE *hdrs;
+	char *hptr;
+	char msg[BUF_SIZE];
+	size_t hsize;
+	ssize_t rlen = 0;
+	ssize_t bytes_read;
+
+	memset(buf, 0, sizeof(buf));
+	snprintf(msg, sizeof(msg), "TOP %d\r\n", message);
+	write(sockfd, msg, strlen(msg));
+
+	for (;;) {
+		bytes_read = read(sockfd, buf + rlen, BUF_SIZE - rlen);
+		rlen += bytes_read;
+		/*
+		 * This might not be fool proof, but we need some way
+		 * to know when to stop reading.
+		 */
+		if (strstr(buf, "\r\n\r\n.\r\n"))
+			break;
+	}
+
+	hdrs = open_memstream(&hptr, &hsize);
+	fprintf(hdrs, "%s", buf);
+	rewind(hdrs);
+
+	nr_messages++;
+	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdrs) * nr_messages);
+	msg_hdrs[message - 1].msg = message;
+	msg_hdrs[message - 1].len = len;
+	do {
+		char *line = NULL;
+		char *hdr;
+		size_t size;
+
+		bytes_read = getline(&line, &size, hdrs);
+		if (bytes_read == -1)
+			goto out;
+		if (strncasecmp(line, "subject: ", 9) == 0) {
+			hdr = strchr(line, ' ') + 1;
+			strchomp(hdr);
+			msg_hdrs[message - 1].subject = strdup(hdr);
+		} else if (strncasecmp(line, "from: ", 6) == 0) {
+			hdr = strchr(line, ' ') + 1;
+			strchomp(hdr);
+			msg_hdrs[message - 1].from = strdup(hdr);
+		} else if (strncasecmp(line, "date: ", 6) == 0) {
+			hdr = strchr(line, ' ') + 1;
+			strchomp(hdr);
+			msg_hdrs[message - 1].date = strdup(hdr);
+		}
+out:
+		free(line);
+		line = NULL;
+	} while (bytes_read > 0);
+
+	fclose(hdrs);
+	free(hptr);
+}
+
+static void get_message_list(void)
+{
+	FILE *list;
+	char *lptr;
+	size_t lsize;
+	ssize_t bytes_read;
+
+	write(sockfd, "LIST\r\n", 6);
+	bytes_read = read(sockfd, buf, BUF_SIZE);
+
+	list = open_memstream(&lptr, &lsize);
+	fprintf(list, "%s", buf);
+	rewind(list);
+
+	do {
+		char *line = NULL;
+		char *string;
+		size_t len;
+		size_t mlen;
+		int message;
+
+		bytes_read = getline(&line, &len, list);
+		if (bytes_read == -1 || line[0] == '-' || line[0] == '+' ||
+		    line[0] == '.' || strlen(line) == 0)
+			goto next;
+		string = strdup(line);
+		message = atoi(strtok(string, " "));
+		mlen = atol(strtok(NULL, " "));
+		get_message_hdrs(message, mlen);
+		free(string);
+next:
+		free(line);
+		line = NULL;
+	} while (bytes_read > 0);
+
+	fclose(list);
+	free(lptr);
 }
 
 static void do_connect(const char *host, const char *username,
@@ -38,6 +178,7 @@ static void do_connect(const char *host, const char *username,
 {
 	struct addrinfo hints;
 	struct addrinfo *res;
+	ssize_t bytes_read;
 
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
@@ -77,6 +218,8 @@ static void msg_send(const char *comm)
 
 static int msg_get(void)
 {
+	ssize_t bytes_read;
+
 	memset(buf, 0, sizeof(buf));
 	bytes_read = read(sockfd, buf, BUF_SIZE);
 	printf("%s", buf);
@@ -100,6 +243,7 @@ static int get_command(void)
 {
 	int ret;
 	size_t len;
+	ssize_t bytes_read;
 	char *comm = NULL;
 
 	bytes_read = getline(&comm, &len, stdin);
@@ -138,6 +282,8 @@ int main(int argc, char *argv[])
 	FD_SET(STDIN_FILENO, &rfds);
 	FD_SET(sockfd, &rfds);
 
+	get_message_list();
+	display_message_list();
 	for (;;) {
 		printf("popx %s> ", argv[1]);
 		fflush(stdout);
@@ -159,6 +305,7 @@ int main(int argc, char *argv[])
 	}
 
 	close(sockfd);
+	free_msg_hdrs();
 
 	exit(EXIT_SUCCESS);
 }
