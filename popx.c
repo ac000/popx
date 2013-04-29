@@ -221,15 +221,6 @@ static void do_connect(const char *host, const char *username,
 	printf("%s\n", buf);
 }
 
-static void msg_send(const char *comm)
-{
-	char msg[BUF_SIZE];
-	int len;
-
-	len = snprintf(msg, sizeof(msg), "%s\r\n", comm);
-	write(sockfd, msg, len);
-}
-
 static int msg_get(void)
 {
 	ssize_t bytes_read;
@@ -242,6 +233,17 @@ static int msg_get(void)
 		return -1;
 	else
 		return 0;
+}
+
+static void msg_send(const char *comm)
+{
+	char msg[BUF_SIZE];
+	int len;
+
+	len = snprintf(msg, sizeof(msg), "%s\r\n", comm);
+	write(sockfd, msg, len);
+
+	msg_get();
 }
 
 static void parse_command(const char *comm)
