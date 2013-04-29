@@ -230,30 +230,24 @@ static int msg_get(void)
 		return 0;
 }
 
-static int parse_command(const char *comm)
+static void parse_command(const char *comm)
 {
 	if (strncmp(comm, "exit", 4) == 0)
-		return -2;
+		write(sockfd, "QUIT\r\n", 6);
 	else
 		msg_send(comm);
-	return 0;
 }
 
-static int get_command(void)
+static void get_command(void)
 {
-	int ret = 0;
 	size_t len;
 	char *comm = NULL;
 
 	getline(&comm, &len, stdin);
 	strchomp(comm);
-	if (strlen(comm) == 0)
-		goto out;
-	ret = parse_command(comm);
-out:
+	if (strlen(comm) > 0)
+		parse_command(comm);
 	free(comm);
-
-	return ret;
 }
 
 int main(int argc, char *argv[])
@@ -289,17 +283,14 @@ int main(int argc, char *argv[])
 		printf("popx %s> ", argv[1]);
 		fflush(stdout);
 		select(sockfd + 1, &rfds, NULL, NULL, NULL);
-		if (FD_ISSET(sockfd, &rfds))
+		if (FD_ISSET(sockfd, &rfds)) {
 			ret = msg_get();
-		else
-			ret = get_command();
-
-		if (ret == -1) {
-			fprintf(stderr, "Connection closed by foreign host\n");
-			break;
-		} else if (ret == -2) {
-			printf("Bye.\n");
-			break;
+			if (ret == -1) {
+				printf("Connection closed by foreign host\n");
+				break;
+			}
+		} else {
+			get_command();
 		}
 		FD_SET(STDIN_FILENO, &rfds);
 		FD_SET(sockfd, &rfds);
