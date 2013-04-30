@@ -23,7 +23,6 @@
 #include <netdb.h>
 
 #define BUF_SIZE        8192
-#define POP3_PORT	"110"
 
 struct msg_hdrs {
 	int msg;
@@ -33,6 +32,7 @@ struct msg_hdrs {
 	char *date;
 };
 
+static const char *port = "110";
 static int nr_messages;
 static int sockfd;
 static char buf[BUF_SIZE];
@@ -40,7 +40,7 @@ static struct msg_hdrs *msg_hdrs;
 
 static void print_usage(void)
 {
-	printf("Usage: popx <host> <username>\n");
+	printf("Usage: popx -h <host> -u <username> [-p <port>]\n");
 }
 
 static void print_help(void)
@@ -216,7 +216,7 @@ static void do_connect(const char *host, const char *username,
 	hints.ai_flags = 0;
 	hints.ai_protocol = 0;
 
-	getaddrinfo(host, POP3_PORT, &hints, &res);
+	getaddrinfo(host, port, &hints, &res);
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	connect(sockfd, res->ai_addr, res->ai_addrlen);
 	freeaddrinfo(res);
@@ -295,11 +295,30 @@ static void get_command(void)
 int main(int argc, char *argv[])
 {
 	int ret;
-	fd_set rfds;
+	int opt;
 	char password[65];
+	const char *host = NULL;
+	const char *user = NULL;
 	struct termios tp;
+	fd_set rfds;
 
-	if (argc < 3) {
+	while ((opt = getopt(argc, argv, "h:p:u:")) != -1) {
+		switch (opt) {
+		case 'h':
+			host = optarg;
+			break;
+		case 'p':
+			port = optarg;
+			break;
+		case 'u':
+			user = optarg;
+			break;
+		default:
+			print_usage();
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (!user || !host) {
 		print_usage();
 		exit(EXIT_FAILURE);
 	}
@@ -312,7 +331,7 @@ int main(int argc, char *argv[])
 	tp.c_lflag |= ECHO;	/* Turn ECHO back on */
 	tcsetattr(STDIN_FILENO, TCSAFLUSH, &tp);
 	printf("\n");
-	do_connect(argv[1], argv[2], password);
+	do_connect(host, user, password);
 	memset(password, 0, sizeof(password));
 
 	get_message_list();
@@ -320,7 +339,7 @@ int main(int argc, char *argv[])
 
 	FD_ZERO(&rfds);
 	for (;;) {
-		printf("popx %s> ", argv[1]);
+		printf("popx %s> ", host);
 		fflush(stdout);
 		FD_SET(STDIN_FILENO, &rfds);
 		FD_SET(sockfd, &rfds);
