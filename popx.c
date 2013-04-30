@@ -104,13 +104,13 @@ static void get_message_hdrs(int message, size_t len)
 
 	for (;;) {
 		bytes_read = read(sockfd, buf + rlen, BUF_SIZE - rlen);
-		rlen += bytes_read;
 		/*
 		 * This might not be fool proof, but we need some way
 		 * to know when to stop reading.
 		 */
-		if (strstr(buf, "\r\n\r\n.\r\n"))
+		if (strstr(buf + rlen, "\r\n\r\n.\r\n"))
 			break;
+		rlen += bytes_read;
 	}
 
 	hdrs = open_memstream(&hptr, &hsize);
