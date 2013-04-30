@@ -116,7 +116,7 @@ static void get_message_hdrs(int message, size_t len)
 	hdrs = open_memstream(&hptr, &hsize);
 	fprintf(hdrs, "%s", buf);
 	rewind(hdrs);
-;
+
 	index = ++nr_messages - 1;
 	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdrs) * nr_messages);
 	memset(&msg_hdrs[index], 0, sizeof(struct msg_hdrs));
