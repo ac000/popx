@@ -77,6 +77,24 @@ static char *strchomp(char *string)
 	return string;
 }
 
+static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
+{
+	ssize_t bytes_read;
+	ssize_t total = 0;
+
+	for (;;) {
+		bytes_read = read(sockfd, buf + total, count - total);
+		/*
+		 * This might not be fool proof, but we need some way
+		 * to know when to stop reading.
+		 */
+		if (strstr(buf + total, "\r\n\r\n.\r\n"))
+			break;
+		total += bytes_read;
+	}
+	return total += bytes_read;
+}
+
 static void display_message_list(void)
 {
 	int i;
@@ -94,24 +112,14 @@ static void get_message_hdrs(int message, size_t len)
 	char *hptr;
 	char msg[BUF_SIZE];
 	size_t hsize;
-	ssize_t rlen = 0;
 	ssize_t bytes_read;
 	int index;
 
-	memset(buf, 0, sizeof(buf));
 	snprintf(msg, sizeof(msg), "TOP %d\r\n", message);
 	write(sockfd, msg, strlen(msg));
 
-	for (;;) {
-		bytes_read = read(sockfd, buf + rlen, BUF_SIZE - rlen);
-		/*
-		 * This might not be fool proof, but we need some way
-		 * to know when to stop reading.
-		 */
-		if (strstr(buf + rlen, "\r\n\r\n.\r\n"))
-			break;
-		rlen += bytes_read;
-	}
+	memset(buf, 0, sizeof(buf));
+	read_pop_response_sync(sockfd, buf, BUF_SIZE);
 
 	hdrs = open_memstream(&hptr, &hsize);
 	fprintf(hdrs, "%s", buf);
