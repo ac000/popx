@@ -88,7 +88,7 @@ static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
 		 * This might not be fool proof, but we need some way
 		 * to know when to stop reading.
 		 */
-		if (strstr(buf + total, "\r\n\r\n.\r\n"))
+		if (strstr(buf + total, "\r\n.\r\n"))
 			break;
 		total += bytes_read;
 	}
@@ -168,7 +168,7 @@ static void get_message_list(void)
 	ssize_t bytes_read;
 
 	write(sockfd, "LIST\r\n", 6);
-	bytes_read = read(sockfd, buf, BUF_SIZE);
+	read_pop_response_sync(sockfd, buf, BUF_SIZE);
 
 	list = open_memstream(&lptr, &lsize);
 	fprintf(list, "%s", buf);
