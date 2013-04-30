@@ -294,7 +294,6 @@ static void get_command(void)
 
 int main(int argc, char *argv[])
 {
-	int ret;
 	int opt;
 	char password[65];
 	const char *host = NULL;
@@ -345,6 +344,8 @@ int main(int argc, char *argv[])
 		FD_SET(sockfd, &rfds);
 		select(sockfd + 1, &rfds, NULL, NULL, NULL);
 		if (FD_ISSET(sockfd, &rfds)) {
+			int ret;
+
 			ret = msg_get();
 			if (ret == -1) {
 				printf("Connection closed by foreign host\n");
