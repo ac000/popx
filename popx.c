@@ -115,7 +115,12 @@ static void get_message_hdrs(int message, size_t len)
 	ssize_t bytes_read;
 	int index;
 
-	snprintf(msg, sizeof(msg), "TOP %d\r\n", message);
+	/*
+	 * Some POP servers _require_ the second argument (number of
+	 * lines from the body to show) to TOP e.g The University of
+	 * Washington's IMAP/POP server
+	 */
+	snprintf(msg, sizeof(msg), "TOP %d 0\r\n", message);
 	write(sockfd, msg, strlen(msg));
 
 	memset(buf, 0, sizeof(buf));
