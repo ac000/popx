@@ -21,8 +21,12 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/ioctl.h>
 
 #define BUF_SIZE        8192
+
+#define FWD		0
+#define BWD		1
 
 struct msg_hdrs {
 	int msg;
@@ -33,6 +37,7 @@ struct msg_hdrs {
 };
 
 static const char *port = "110";
+static int display_nr_hdrs;
 static int nr_messages;
 static int sockfd;
 static char buf[BUF_SIZE];
@@ -55,6 +60,9 @@ static void print_help(void)
 	printf("    LIST        List messages (POP)\n");
 	printf("    LISTX       popx message list\n");
 	printf("    QUIT\n");
+	printf("\n");
+	printf("    n           Display the next page of headers\n");
+	printf("    p           Display the previous page of headers\n");
 }
 
 static void free_msg_hdrs(void)
@@ -95,14 +103,28 @@ static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
 	return total += bytes_read;
 }
 
-static void display_message_list(void)
+static void display_message_list(int direction)
 {
 	int i;
+	int n = display_nr_hdrs;
+	static int j;			/* last header displayed */
 
-	for (i = 0; i < nr_messages; i++) {
-		printf("% 4d: %s\n", msg_hdrs[i].msg, msg_hdrs[i].subject);
-		printf("\t%s\n", msg_hdrs[i].from);
-		printf("\t%s\n", msg_hdrs[i].date);
+	if (display_nr_hdrs >= nr_messages) {
+		j = 0;
+		n = nr_messages;
+	} else if (direction == FWD) {
+		if (j + display_nr_hdrs > nr_messages)
+			j = nr_messages - display_nr_hdrs;
+	} else if (direction == BWD) {
+		j -= display_nr_hdrs * 2;
+		if (j < 0)
+			j = 0;
+	}
+
+	for (i = 0; i < n; i++, j++) {
+		printf("% 4d: %s\n", msg_hdrs[j].msg, msg_hdrs[j].subject);
+		printf("\t%s\n", msg_hdrs[j].from);
+		printf("\t%s\n", msg_hdrs[j].date);
 	}
 }
 
@@ -270,7 +292,11 @@ static void parse_command(const char *comm)
 	else if (strcasecmp(comm, "help") == 0)
 		print_help();
 	else if (strcasecmp(comm, "listx") == 0)
-		display_message_list();
+		display_message_list(FWD);
+	else if (strncasecmp(comm, "n", 1) == 0)
+		display_message_list(FWD);
+	else if (strncasecmp(comm, "p", 1) == 0)
+		display_message_list(BWD);
 	else
 		msg_send(comm);
 
@@ -299,6 +325,7 @@ int main(int argc, char *argv[])
 	const char *host = NULL;
 	const char *user = NULL;
 	struct termios tp;
+	struct winsize ws;
 	fd_set rfds;
 
 	while ((opt = getopt(argc, argv, "h:p:u:")) != -1) {
@@ -333,8 +360,11 @@ int main(int argc, char *argv[])
 	do_connect(host, user, password);
 	memset(password, 0, sizeof(password));
 
+	/* Work out how many headers we can display at a time */
+	ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+	display_nr_hdrs = (ws.ws_row / 3) - 1;
 	get_message_list();
-	display_message_list();
+	display_message_list(FWD);
 
 	FD_ZERO(&rfds);
 	for (;;) {

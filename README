@@ -7,8 +7,8 @@ E.g connect to your POP3 server
 Where me@example.com is the username for the account. It will then prompt
 for the password (with echo turned off).
 
-Upon connecting it will give you a list of your messages (there's no in app
-paging) e.g you will see something like
+Upon connecting it will give you a list of message headers that will fit
+on your screen  e.g you will see something like
 
 +OK Mailbox open, 4 messages
    1: Test
@@ -23,6 +23,8 @@ paging) e.g you will see something like
    4: Test 2
 	Andrew Clayton <andrew@digital-domain.net>
 	Sun, 28 Apr 2013 00:13:31 +0100
+
+You can cycle through your messages with the 'n' and 'p' commands.
 
 You can then issue commands such as TOP n, RETR n, DELE n etc. Commands are
 not case sensitive.
