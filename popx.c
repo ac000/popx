@@ -92,15 +92,18 @@ static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
 
 	for (;;) {
 		bytes_read = read(sockfd, buf + total, count - total);
+		total += bytes_read;
 		/*
 		 * This might not be fool proof, but we need some way
 		 * to know when to stop reading.
+		 *
+		 * We also need to check the whole of buf, in case the
+		 * string gets split across reads()'s.
 		 */
-		if (strstr(buf + total, "\r\n.\r\n"))
+		if (strstr(buf, "\r\n.\r\n"))
 			break;
-		total += bytes_read;
 	}
-	return total += bytes_read;
+	return total;
 }
 
 static void display_message_list(int direction)
