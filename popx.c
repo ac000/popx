@@ -22,6 +22,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
+#include <signal.h>
+#include <sys/signalfd.h>
 
 #define BUF_SIZE        8192
 
@@ -63,6 +65,14 @@ static void print_help(void)
 	printf("\n");
 	printf("    n           Display the next page of headers\n");
 	printf("    p           Display the previous page of headers\n");
+}
+
+static void set_display_nr_hdrs(void)
+{
+	struct winsize ws;
+
+	ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
+	display_nr_hdrs = (ws.ws_row / 3) - 1;
 }
 
 static void free_msg_hdrs(void)
@@ -321,15 +331,30 @@ static void get_command(void)
 	free(comm);
 }
 
+static void do_winch(int fd)
+{
+	struct signalfd_siginfo fdsi;
+	ssize_t s;
+
+	s = read(fd, &fdsi, sizeof(struct signalfd_siginfo));
+	if (s != sizeof(struct signalfd_siginfo))
+		return;
+	if (fdsi.ssi_signo != SIGWINCH)
+		return;
+
+	set_display_nr_hdrs();
+}
+
 int main(int argc, char *argv[])
 {
 	int opt;
+	int sfd;
 	char password[65];
 	const char *host = NULL;
 	const char *user = NULL;
 	struct termios tp;
-	struct winsize ws;
 	fd_set rfds;
+	sigset_t mask;
 
 	while ((opt = getopt(argc, argv, "h:p:u:")) != -1) {
 		switch (opt) {
@@ -364,18 +389,24 @@ int main(int argc, char *argv[])
 	memset(password, 0, sizeof(password));
 
 	/* Work out how many headers we can display at a time */
-	ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
-	display_nr_hdrs = (ws.ws_row / 3) - 1;
+	set_display_nr_hdrs();
 	get_message_list();
 	display_message_list(FWD);
+
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGWINCH);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
+	sfd = signalfd(-1, &mask, 0);
 
 	FD_ZERO(&rfds);
 	for (;;) {
 		printf("popx %s> ", host);
 		fflush(stdout);
+select:
 		FD_SET(STDIN_FILENO, &rfds);
 		FD_SET(sockfd, &rfds);
-		select(sockfd + 1, &rfds, NULL, NULL, NULL);
+		FD_SET(sfd, &rfds);
+		select(sfd + 1, &rfds, NULL, NULL, NULL);
 		if (FD_ISSET(sockfd, &rfds)) {
 			int ret;
 
@@ -384,12 +415,17 @@ int main(int argc, char *argv[])
 				printf("Connection closed by foreign host\n");
 				break;
 			}
-		} else {
+		} else if (FD_ISSET(STDIN_FILENO, &rfds)) {
 			get_command();
+		} else {
+			do_winch(sfd);
+			/* Don't keep repeating the prompt */
+			goto select;
 		}
 	}
 
 	close(sockfd);
+	close(sfd);
 	free_msg_hdrs();
 
 	exit(EXIT_SUCCESS);
