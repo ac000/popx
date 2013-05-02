@@ -66,6 +66,17 @@ static void print_help(void)
 	printf("    p           Display the previous page of headers\n");
 }
 
+static size_t round_bytes_up(size_t size)
+{
+	/*
+	 * Give breathing space for POP headers and any
+	 * terminating nul byte we might add.
+	 */
+	size += BUF_SIZE;
+
+	return size + BUF_SIZE - size % BUF_SIZE;
+}
+
 static void set_display_nr_hdrs(void)
 {
 	struct winsize ws;
@@ -246,6 +257,33 @@ next:
 	free(lptr);
 }
 
+static void retrieve_message(const char *command)
+{
+	char *buf;
+	char *token;
+	char msg[65];
+	size_t size;
+	int message;
+
+	token = strchr(command, ' ') + 1;
+	strchomp(token);
+	message = atoi(token);
+
+	if (message < 1 || message > nr_messages)
+		return;
+
+	size = round_bytes_up(msg_hdrs[message - 1].len);
+	buf = malloc(size);
+
+	snprintf(msg, sizeof(msg), "RETR %d\r\n", message);
+	write(sockfd, msg, strlen(msg));
+	read_pop_response_sync(sockfd, buf, size);
+
+	printf("%s", buf);
+
+	free(buf);
+}
+
 static void do_connect(const char *host, const char *username,
 		       const char *password)
 {
@@ -319,6 +357,8 @@ static void parse_command(const char *comm)
 		display_message_list(FWD);
 	else if (strncasecmp(comm, "p", 1) == 0)
 		display_message_list(BWD);
+	else if (strncasecmp(comm, "retr", 4) == 0)
+		retrieve_message(comm);
 	else
 		msg_send(comm);
 
