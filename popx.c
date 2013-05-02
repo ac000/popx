@@ -99,9 +99,15 @@ static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
 	ssize_t bytes_read;
 	ssize_t total = 0;
 
+	count--; /* leave space for terminating nul byte */
 	for (;;) {
 		bytes_read = read(sockfd, buf + total, count - total);
 		total += bytes_read;
+		/*
+		 * nul terminate after each read() so the subsequent
+		 * strstr() has a correctly set end boundary.
+		 */
+		((char *)buf)[total] = '\0';
 		/*
 		 * This might not be fool proof, but we need some way
 		 * to know when to stop reading.
@@ -112,6 +118,7 @@ static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
 		if (strstr(buf, "\r\n.\r\n"))
 			break;
 	}
+
 	return total;
 }
 
@@ -144,7 +151,7 @@ static void get_message_hdrs(int message, size_t len)
 {
 	FILE *hdrs;
 	char *hptr;
-	char buf[BUF_SIZE];
+	char buf[BUF_SIZE] = "\0";	/* \0 to prevent buf corruption */
 	char msg[BUF_SIZE];
 	size_t hsize;
 	ssize_t bytes_read;
@@ -158,7 +165,6 @@ static void get_message_hdrs(int message, size_t len)
 	snprintf(msg, sizeof(msg), "TOP %d 0\r\n", message);
 	write(sockfd, msg, strlen(msg));
 
-	memset(buf, 0, sizeof(buf));
 	read_pop_response_sync(sockfd, buf, BUF_SIZE);
 
 	hdrs = open_memstream(&hptr, &hsize);
