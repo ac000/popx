@@ -42,7 +42,6 @@ static const char *port = "110";
 static int display_nr_hdrs;
 static int nr_messages;
 static int sockfd;
-static char buf[BUF_SIZE];
 static struct msg_hdrs *msg_hdrs;
 
 static void print_usage(void)
@@ -145,6 +144,7 @@ static void get_message_hdrs(int message, size_t len)
 {
 	FILE *hdrs;
 	char *hptr;
+	char buf[BUF_SIZE];
 	char msg[BUF_SIZE];
 	size_t hsize;
 	ssize_t bytes_read;
@@ -204,6 +204,7 @@ static void get_message_list(void)
 {
 	FILE *list;
 	char *lptr;
+	char buf[BUF_SIZE];
 	size_t lsize;
 	ssize_t bytes_read;
 
@@ -245,6 +246,7 @@ static void do_connect(const char *host, const char *username,
 	struct addrinfo hints;
 	struct addrinfo *res;
 	ssize_t bytes_read;
+	char buf[BUF_SIZE];
 
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
@@ -276,6 +278,7 @@ static void do_connect(const char *host, const char *username,
 static int msg_get(void)
 {
 	ssize_t bytes_read;
+	char buf[BUF_SIZE];
 
 	memset(buf, 0, sizeof(buf));
 	bytes_read = read(sockfd, buf, BUF_SIZE);
