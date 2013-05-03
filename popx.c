@@ -162,7 +162,7 @@ static void get_message_hdrs(int message, size_t len)
 {
 	FILE *hdrs;
 	char *hptr;
-	char buf[BUF_SIZE] = "\0";	/* \0 to prevent buf corruption */
+	char buf[BUF_SIZE];
 	char msg[BUF_SIZE];
 	size_t hsize;
 	ssize_t bytes_read;
