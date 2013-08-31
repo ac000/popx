@@ -195,7 +195,7 @@ static void get_message_hdrs(int message, size_t len)
 
 		bytes_read = getline(&line, &size, hdrs);
 		if (bytes_read == -1)
-			goto out;
+			goto free_line;
 		if (strncasecmp(line, "subject: ", 9) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
@@ -209,7 +209,7 @@ static void get_message_hdrs(int message, size_t len)
 			strchomp(hdr);
 			msg_hdrs[index].date = strdup(hdr);
 		}
-out:
+free_line:
 		free(line);
 	} while (bytes_read > 0);
 
