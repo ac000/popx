@@ -1,7 +1,7 @@
 /*
  * popx.c - CLI to access a POP3 mailbox, in the same vein as mailx
  *
- * Copyright (C) 2013		Andrew Clayton <andrew@digital-domain.net>
+ * Copyright (C) 2013 - 2014	Andrew Clayton <andrew@digital-domain.net>
  *
  * Licensed under the GNU General Public License Version 2
  * See COPYING
@@ -107,12 +107,11 @@ static char *strchomp(char *string)
 
 static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
 {
-	ssize_t bytes_read;
 	ssize_t total = 0;
 
 	count--; /* leave space for terminating nul byte */
 	for (;;) {
-		bytes_read = read(sockfd, buf + total, count - total);
+		ssize_t bytes_read = read(sockfd, buf + total, count - total);
 		total += bytes_read;
 		/*
 		 * nul terminate after each read() so the subsequent
