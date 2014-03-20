@@ -308,7 +308,7 @@ static void do_connect(const char *host, const char *username,
 	/* Send username */
 	snprintf(buf, sizeof(buf), "USER %s\r\n", username);
 	write(sockfd, buf, strlen(buf));
-	bytes_read = read(sockfd, buf, BUF_SIZE);
+	read(sockfd, buf, BUF_SIZE);
 
 	/* Send password */
 	snprintf(buf, sizeof(buf), "PASS %s\r\n", password);
