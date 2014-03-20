@@ -105,7 +105,7 @@ static char *strchomp(char *string)
 	return string;
 }
 
-static ssize_t read_pop_response_sync(int fd, void *buf, size_t count)
+static ssize_t read_pop_response_sync(int fd, char *buf, size_t count)
 {
 	ssize_t total = 0;
 
