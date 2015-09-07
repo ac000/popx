@@ -291,10 +291,9 @@ static void do_connect(const char *host, const char *username,
 	ssize_t bytes_read;
 	char buf[BUF_SIZE];
 
+	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = 0;
-	hints.ai_protocol = 0;
 
 	getaddrinfo(host, port, &hints, &res);
 	sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
