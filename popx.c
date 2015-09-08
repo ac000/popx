@@ -1,7 +1,7 @@
 /*
  * popx.c - CLI to access a POP3 mailbox, in the same vein as mailx
  *
- * Copyright (C) 2013 - 2014	Andrew Clayton <andrew@digital-domain.net>
+ * Copyright (C) 2013 - 2015	Andrew Clayton <andrew@digital-domain.net>
  *
  * Licensed under the GNU General Public License Version 2
  * See COPYING
