@@ -1,6 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -g -std=c99 -O2
-LDFLAGS=
+CFLAGS=-Wall -g -std=c99 -O2 -fstack-protector-strong -fPIC -Wl,-z,now -pie
 
 popx: popx.c
 	 $(CC) $(CFLAGS) -o popx popx.c
