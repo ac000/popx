@@ -2,7 +2,7 @@ A simple command line tool to accessing POP3 mailbox's.
 
 E.g connect to your POP3 server
 
-	./popx 10.0.5.5 me@example.com
+	./popx -h 2001:db8::dead:beef:cafe -u me@example.com
 
 Where me@example.com is the username for the account. It will then prompt
 for the password (with echo turned off).
