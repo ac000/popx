@@ -1,7 +1,7 @@
 /*
  * popx.c - CLI to access a POP3 mailbox, in the same vein as mailx
  *
- * Copyright (C) 2013 - 2015	Andrew Clayton <andrew@digital-domain.net>
+ * Copyright (C) 2013 - 2015, 2017   Andrew Clayton <andrew@digital-domain.net>
  *
  * Licensed under the GNU General Public License Version 2
  * See COPYING
@@ -247,7 +247,6 @@ static void get_message_list(void)
 		free(string);
 next:
 		free(line);
-		line = NULL;
 	} while (bytes_read > 0);
 
 	fclose(list);
