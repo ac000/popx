@@ -218,6 +218,7 @@ static void get_message_list(void)
 	char *buf;
 	size_t lsize;
 	ssize_t bytes_read;
+	int nrmsgs = 1;
 
 	write(sockfd, "LIST\r\n", 6);
 	read_pop_response_multi_line(&buf);
@@ -240,11 +241,15 @@ static void get_message_list(void)
 		string = strdup(line);
 		message = atoi(strtok(string, " "));
 		mlen = atol(strtok(NULL, " "));
+		printf("Retrieving summary for message : %d\r", nrmsgs);
+		fflush(stdout);
+		nrmsgs++;
 		get_message_hdrs(message, mlen);
 		free(string);
 next:
 		free(line);
 	} while (bytes_read > 0);
+	printf("\n");
 
 	fclose(list);
 	free(lptr);
