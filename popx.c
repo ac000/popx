@@ -64,17 +64,6 @@ static void print_help(void)
 	printf("    p           Display the previous page of headers\n");
 }
 
-static size_t round_bytes_up(size_t size)
-{
-	/*
-	 * Give breathing space for POP headers and any
-	 * terminating nul byte we might add.
-	 */
-	size += BUF_SIZE;
-
-	return size + BUF_SIZE - size % BUF_SIZE;
-}
-
 static void set_display_nr_hdrs(void)
 {
 	struct winsize ws;
@@ -103,19 +92,24 @@ static char *strchomp(char *string)
 	return string;
 }
 
-static ssize_t read_pop_response_sync(int fd, char *buf, size_t count)
+static ssize_t read_pop_response_multi_line(char **buf)
 {
 	ssize_t total = 0;
+	ssize_t bytes_read;
+	size_t alloced = BUF_SIZE;
 
-	count--; /* leave space for terminating nul byte */
-	for (;;) {
-		ssize_t bytes_read = read(sockfd, buf + total, count - total);
+	*buf = malloc(BUF_SIZE);
+
+	while (1) {
+		short int overlap = 5;
+
+		bytes_read = read(sockfd, *buf + total, BUF_SIZE - 1);
 		total += bytes_read;
 		/*
 		 * nul terminate after each read() so the subsequent
 		 * strstr() has a correctly set end boundary.
 		 */
-		((char *)buf)[total] = '\0';
+		(*buf)[total] = '\0';
 		/*
 		 * This might not be fool proof, but we need some way
 		 * to know when to stop reading.
@@ -123,8 +117,13 @@ static ssize_t read_pop_response_sync(int fd, char *buf, size_t count)
 		 * We also need to check the whole of buf, in case the
 		 * string gets split across reads()'s.
 		 */
-		if (strstr(buf, "\r\n.\r\n"))
+		if (total == bytes_read)
+			overlap = 0;
+		if (strstr(*buf + total - bytes_read - overlap, "\r\n.\r\n"))
 			break;
+
+		*buf = realloc(*buf, alloced + BUF_SIZE);
+		alloced += BUF_SIZE;
 	}
 
 	return total;
@@ -159,7 +158,7 @@ static void get_message_hdrs(int message, size_t len)
 {
 	FILE *hdrs;
 	char *hptr;
-	char buf[BUF_SIZE];
+	char *buf;
 	char msg[BUF_SIZE];
 	size_t hsize;
 	ssize_t bytes_read;
@@ -173,7 +172,7 @@ static void get_message_hdrs(int message, size_t len)
 	snprintf(msg, sizeof(msg), "TOP %d 0\r\n", message);
 	write(sockfd, msg, strlen(msg));
 
-	read_pop_response_sync(sockfd, buf, BUF_SIZE);
+	read_pop_response_multi_line(&buf);
 
 	hdrs = open_memstream(&hptr, &hsize);
 	fprintf(hdrs, "%s", buf);
@@ -212,18 +211,19 @@ free_line:
 
 	fclose(hdrs);
 	free(hptr);
+	free(buf);
 }
 
 static void get_message_list(void)
 {
 	FILE *list;
 	char *lptr;
-	char buf[BUF_SIZE];
+	char *buf;
 	size_t lsize;
 	ssize_t bytes_read;
 
 	write(sockfd, "LIST\r\n", 6);
-	read_pop_response_sync(sockfd, buf, BUF_SIZE);
+	read_pop_response_multi_line(&buf);
 
 	list = open_memstream(&lptr, &lsize);
 	fprintf(list, "%s", buf);
@@ -251,6 +251,7 @@ next:
 
 	fclose(list);
 	free(lptr);
+	free(buf);
 }
 
 static void retrieve_message(const char *command)
@@ -258,7 +259,6 @@ static void retrieve_message(const char *command)
 	char *buf;
 	char *token;
 	char msg[65];
-	size_t size;
 	int message;
 
 	token = strchr(command, ' ') + 1;
@@ -268,12 +268,9 @@ static void retrieve_message(const char *command)
 	if (message < 1 || message > nr_messages)
 		return;
 
-	size = round_bytes_up(msg_hdrs[message - 1].len);
-	buf = malloc(size);
-
 	snprintf(msg, sizeof(msg), "RETR %d\r\n", message);
 	write(sockfd, msg, strlen(msg));
-	read_pop_response_sync(sockfd, buf, size);
+	read_pop_response_multi_line(&buf);
 
 	printf("%s", buf);
 
