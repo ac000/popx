@@ -113,9 +113,6 @@ static ssize_t read_pop_response_multi_line(char **buf)
 		/*
 		 * This might not be fool proof, but we need some way
 		 * to know when to stop reading.
-		 *
-		 * We also need to check the whole of buf, in case the
-		 * string gets split across reads()'s.
 		 */
 		if (total == bytes_read)
 			overlap = 0;
