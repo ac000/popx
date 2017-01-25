@@ -28,7 +28,7 @@
 #define FWD		0
 #define BWD		1
 
-struct msg_hdrs {
+struct msg_hdr {
 	int msg;
 	size_t len;
 	char *from;
@@ -40,7 +40,7 @@ static const char *port = "110";
 static int display_nr_hdrs;
 static int nr_messages;
 static int sockfd;
-static struct msg_hdrs *msg_hdrs;
+static struct msg_hdr *msg_hdrs;
 
 static void print_usage(void)
 {
@@ -176,8 +176,8 @@ static void get_message_hdrs(int message, size_t len)
 	rewind(hdrs);
 
 	index = ++nr_messages - 1;
-	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdrs) * nr_messages);
-	memset(&msg_hdrs[index], 0, sizeof(struct msg_hdrs));
+	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdr) * nr_messages);
+	memset(&msg_hdrs[index], 0, sizeof(struct msg_hdr));
 
 	msg_hdrs[index].msg = message;
 	msg_hdrs[index].len = len;
