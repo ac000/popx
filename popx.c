@@ -7,10 +7,12 @@
  * See COPYING
  */
 
+#define _GNU_SOURCE			/* tdestroy(3) */
 #define _POSIX_C_SOURCE	200809L 	/* for getline(3) */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <strings.h>
 #include <termios.h>
@@ -22,6 +24,7 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <sys/signalfd.h>
+#include <search.h>
 
 #define BUF_SIZE        8192
 
@@ -34,13 +37,15 @@ struct msg_hdr {
 	char *from;
 	char *subject;
 	char *date;
+
+	bool deleted;
 };
 
 static const char *port = "110";
 static int display_nr_hdrs;
 static int nr_messages;
 static int sockfd;
-static struct msg_hdr *msg_hdrs;
+static void *msg_hdrs;
 
 static void print_usage(void)
 {
@@ -64,26 +69,39 @@ static void print_help(void)
 	printf("    p           Display the previous page of headers\n");
 }
 
+static void free_msg_hdr(void *data)
+{
+	struct msg_hdr *mh = data;
+
+	if (!mh)
+		return;
+
+	free(mh->from);
+	free(mh->subject);
+	free(mh->date);
+
+	free(mh);
+}
+
+static int compare(const void *pa, const void *pb)
+{
+	const struct msg_hdr *mh1 = pa;
+	const struct msg_hdr *mh2 = pb;
+
+	if (mh1->msg < mh2->msg)
+		return -1;
+	else if (mh1->msg > mh2->msg)
+		return 1;
+	else
+		return 0;
+}
+
 static void set_display_nr_hdrs(void)
 {
 	struct winsize ws;
 
 	ioctl(STDIN_FILENO, TIOCGWINSZ, &ws);
 	display_nr_hdrs = (ws.ws_row / 3) - 1;
-}
-
-static void free_msg_hdrs(void)
-{
-	int i;
-
-	for (i = 0; i < nr_messages; i++) {
-		free(msg_hdrs[i].from);
-		free(msg_hdrs[i].subject);
-		free(msg_hdrs[i].date);
-	}
-	free(msg_hdrs);
-	msg_hdrs = NULL;
-	nr_messages = 0;
 }
 
 static char *strchomp(char *string)
@@ -133,21 +151,32 @@ static void display_message_list(int direction)
 	static int j;			/* last header displayed */
 
 	if (display_nr_hdrs >= nr_messages) {
-		j = 0;
+		j = 1;
 		n = nr_messages;
 	} else if (direction == FWD) {
 		if (j + display_nr_hdrs > nr_messages)
 			j = nr_messages - display_nr_hdrs;
 	} else if (direction == BWD) {
 		j -= display_nr_hdrs * 2;
-		if (j < 0)
-			j = 0;
 	}
 
+	/* Message numbers start at 1 */
+	if (j < 1)
+		j = 1;
+
 	for (i = 0; i < n; i++, j++) {
-		printf("% 4d: %s\n", msg_hdrs[j].msg, msg_hdrs[j].subject);
-		printf("\t%s\n", msg_hdrs[j].from);
-		printf("\t%s\n", msg_hdrs[j].date);
+		struct msg_hdr smh;
+		struct msg_hdr *mh;
+
+		smh.msg = j;
+		mh = *(struct msg_hdr **)tfind(&smh, &msg_hdrs, compare);
+
+		if (mh->deleted)
+			continue;
+
+		printf("% 4d: %s\n", mh->msg, mh->subject);
+		printf("\t%s\n", mh->from);
+		printf("\t%s\n", mh->date);
 	}
 }
 
@@ -159,7 +188,7 @@ static void get_message_hdrs(int message, size_t len)
 	char msg[BUF_SIZE];
 	size_t hsize;
 	ssize_t bytes_read;
-	int index;
+	struct msg_hdr *mh;
 
 	/*
 	 * Some POP servers _require_ the second argument (number of
@@ -175,12 +204,11 @@ static void get_message_hdrs(int message, size_t len)
 	fprintf(hdrs, "%s", buf);
 	rewind(hdrs);
 
-	index = ++nr_messages - 1;
-	msg_hdrs = realloc(msg_hdrs, sizeof(struct msg_hdr) * nr_messages);
-	memset(&msg_hdrs[index], 0, sizeof(struct msg_hdr));
+	mh = malloc(sizeof(struct msg_hdr));
+	mh->msg = message;
+	mh->len = len;
+	mh->deleted = false;
 
-	msg_hdrs[index].msg = message;
-	msg_hdrs[index].len = len;
 	do {
 		char *line = NULL;
 		char *hdr;
@@ -192,19 +220,22 @@ static void get_message_hdrs(int message, size_t len)
 		if (strncasecmp(line, "subject: ", 9) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[index].subject = strdup(hdr);
+			mh->subject = strdup(hdr);
 		} else if (strncasecmp(line, "from: ", 6) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[index].from = strdup(hdr);
+			mh->from = strdup(hdr);
 		} else if (strncasecmp(line, "date: ", 6) == 0) {
 			hdr = strchr(line, ' ') + 1;
 			strchomp(hdr);
-			msg_hdrs[index].date = strdup(hdr);
+			mh->date = strdup(hdr);
 		}
 free_line:
 		free(line);
 	} while (bytes_read > 0);
+
+	tsearch((void *)mh, &msg_hdrs, compare);
+	nr_messages++;
 
 	fclose(hdrs);
 	free(hptr);
@@ -357,8 +388,13 @@ static void parse_command(const char *comm)
 		msg_send(comm);
 
 	if (strncasecmp(comm, "dele", 4) == 0) {
-		free_msg_hdrs();
-		get_message_list();
+		struct msg_hdr smh;
+		struct msg_hdr *mh;
+		char *ptr = strchr(comm, ' ');
+
+		smh.msg = atoi(++ptr);
+		mh = *(struct msg_hdr **)tfind(&smh, &msg_hdrs, compare);
+		mh->deleted = true;
 	}
 }
 
@@ -469,7 +505,7 @@ select:
 
 	close(sockfd);
 	close(sfd);
-	free_msg_hdrs();
+	tdestroy(msg_hdrs, free_msg_hdr);
 
 	exit(EXIT_SUCCESS);
 }
