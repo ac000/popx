@@ -83,6 +83,14 @@ static void free_msg_hdr(void *data)
 	free(mh);
 }
 
+static void mark_undelete(const void *data, VISIT which, int depth)
+{
+	struct msg_hdr *mh = *(struct msg_hdr **)data;
+
+	if (mh->deleted)
+		mh->deleted = false;
+}
+
 static int compare(const void *pa, const void *pb)
 {
 	const struct msg_hdr *mh1 = pa;
@@ -395,6 +403,8 @@ static void parse_command(const char *comm)
 		smh.msg = atoi(++ptr);
 		mh = *(struct msg_hdr **)tfind(&smh, &msg_hdrs, compare);
 		mh->deleted = true;
+	} else if (strncasecmp(comm, "rset", 4) == 0) {
+		twalk(msg_hdrs, mark_undelete);
 	}
 }
 
