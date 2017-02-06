@@ -121,13 +121,13 @@ static char *strchomp(char *string)
 static ssize_t read_pop_response_multi_line(char **buf)
 {
 	ssize_t total = 0;
-	ssize_t bytes_read;
 	size_t alloced = BUF_SIZE;
 
 	*buf = malloc(BUF_SIZE);
 
 	while (1) {
 		short int overlap = 5;
+		ssize_t bytes_read;
 
 		bytes_read = read(sockfd, *buf + total, BUF_SIZE - 1);
 		total += bytes_read;
