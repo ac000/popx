@@ -83,7 +83,9 @@ static void free_msg_hdr(void *data)
 	free(mh);
 }
 
-static void mark_undelete(const void *data, VISIT which, int depth)
+static void mark_undelete(const void *data,
+			  VISIT which __attribute__((unused)),
+			  int depth __attribute__((unused)))
 {
 	struct msg_hdr *mh = *(struct msg_hdr **)data;
 
